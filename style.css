@@ -1,0 +1,215 @@
+/* ============================================================
+   Twisted Udder — Movement App
+   Custom styles to supplement Tailwind CDN
+   ============================================================ */
+
+/* --- Base -------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  min-height: max(884px, 100dvh);
+  font-family: 'Montserrat', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Screen router ----------------------------------------- */
+.screen { display: none; }
+.screen.active { display: flex; flex-direction: column; flex: 1; }
+
+/* --- Header fade-in ---------------------------------------- */
+header {
+  animation: slideDown 0.35s ease;
+}
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+/* --- Page content entrance --------------------------------- */
+.page-enter {
+  animation: pageEnter 0.3s ease forwards;
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Form inputs ------------------------------------------- */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+input, select, textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Fix autofill background on dark mode */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #2A2A2A inset;
+  -webkit-text-fill-color: #fff;
+}
+
+/* --- Textarea resize only vertical ------------------------- */
+textarea { resize: vertical; }
+
+/* --- WhatsApp button pulse --------------------------------- */
+.whatsapp-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+.whatsapp-btn:active { transform: scale(0.97); }
+.whatsapp-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.15);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.whatsapp-btn:hover::after { opacity: 1; }
+
+/* --- Template card hover ----------------------------------- */
+.template-card {
+  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.template-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(233,78,119,0.15);
+}
+.template-card:active { transform: scale(0.97); }
+
+/* --- Bottom nav tab active indicator ----------------------- */
+.nav-tab::after {
+  content: '';
+  display: block;
+  height: 2px;
+  width: 0;
+  background: #E94E77;
+  border-radius: 2px;
+  margin: 3px auto 0;
+  transition: width 0.25s ease;
+}
+.nav-tab.active::after { width: 24px; }
+
+/* --- History card ------------------------------------------ */
+.log-card {
+  animation: pageEnter 0.25s ease forwards;
+  transition: box-shadow 0.2s;
+}
+.log-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+/* --- Badge ------------------------------------------------- */
+.reason-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* --- Toggle switch ----------------------------------------- */
+.theme-toggle {
+  transition: all 0.25s ease;
+}
+.theme-toggle-active {
+  background: #1E1E1E;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.theme-toggle-inactive {
+  background: transparent;
+  color: inherit;
+}
+.dark .theme-toggle-light-active {
+  background: #fff;
+  color: #111;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* --- Info banner ------------------------------------------- */
+.info-banner {
+  background: rgba(233,78,119,0.08);
+  border: 1px solid rgba(233,78,119,0.2);
+  border-radius: 0.75rem;
+}
+.dark .info-banner {
+  background: rgba(233,78,119,0.06);
+}
+
+/* --- Scrollbar hidden for no-scrollbar class --------------- */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* --- Empty state ------------------------------------------- */
+.empty-state {
+  animation: pageEnter 0.4s ease forwards;
+}
+
+/* --- Modal backdrop ---------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.modal-backdrop.hidden { display: none; }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.modal-sheet {
+  width: 100%;
+  max-width: 448px;
+  animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* --- Toast notification ------------------------------------ */
+#toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 200;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* --- Validation error shake -------------------------------- */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+.shake { animation: shake 0.4s ease; }
+.field-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.25);
+}
