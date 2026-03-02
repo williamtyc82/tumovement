@@ -1,6 +1,6 @@
 /* ============================================================
    Twisted Udder Movement App — app.js
-   Single-Page Application Logic
+   Multi-Entry Support
    ============================================================ */
 
 'use strict';
@@ -13,46 +13,25 @@ const STORAGE_KEYS = {
 };
 
 const REASONS = {
-  annual_leave:       { label: 'Annual Leave',       icon: 'beach_access', color: 'blue' },
-  medical_leave:      { label: 'Medical Leave',       icon: 'medical_services', color: 'red' },
-  client_meeting:     { label: 'Client Meeting',      icon: 'handshake', color: 'green' },
-  wfh:                { label: 'Work From Home',       icon: 'home_work', color: 'purple' },
-  compassionate_leave:{ label: 'Compassionate Leave', icon: 'favorite', color: 'pink' },
+  annual_leave: { label: 'Annual Leave', icon: 'beach_access', color: 'blue' },
+  medical_leave: { label: 'Medical Leave', icon: 'medical_services', color: 'red' },
+  client_meeting: { label: 'Client Meeting', icon: 'handshake', color: 'green' },
+  wfh: { label: 'Work From Home', icon: 'home_work', color: 'purple' },
+  compassionate_leave: { label: 'Compassionate Leave', icon: 'favorite', color: 'pink' },
 };
 
 const BADGE_COLORS = {
-  blue:   'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  red:    'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  green:  'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  red: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  green: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  pink:   'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  pink: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 };
 
 const DEFAULT_TEMPLATES = [
-  {
-    id: 'tpl_1',
-    title: 'Client Visit',
-    icon: 'handshake',
-    color: 'blue',
-    reason: 'client_meeting',
-    notes: 'Visiting client for a scheduled meeting/review.',
-  },
-  {
-    id: 'tpl_2',
-    title: 'WFH',
-    icon: 'home_work',
-    color: 'purple',
-    reason: 'wfh',
-    notes: 'Working from home today. Available on Teams/Slack.',
-  },
-  {
-    id: 'tpl_3',
-    title: 'Medical',
-    icon: 'medical_services',
-    color: 'red',
-    reason: 'medical_leave',
-    notes: 'Medical appointment. Back as soon as possible.',
-  },
+  { id: 'tpl_1', title: 'Client Visit', icon: 'handshake', color: 'blue', reason: 'client_meeting', notes: 'Visiting client for a scheduled meeting/review.' },
+  { id: 'tpl_2', title: 'WFH', icon: 'home_work', color: 'purple', reason: 'wfh', notes: 'Working from home today. Available on Teams/Slack.' },
+  { id: 'tpl_3', title: 'Medical', icon: 'medical_services', color: 'red', reason: 'medical_leave', notes: 'Medical appointment. Back as soon as possible.' },
 ];
 
 // ─── State ───────────────────────────────────────────────────
@@ -60,7 +39,9 @@ const state = {
   currentScreen: 'home',
   logs: [],
   templates: [],
-  pendingTemplate: null, // template to apply when user navigates to home
+  pendingTemplate: null,
+  entries: [],       // array of { id, fromDate, toDate, reason, notes }
+  nextEntryId: 1,
 };
 
 // ─── Storage helpers ─────────────────────────────────────────
@@ -72,7 +53,7 @@ const storage = {
     } catch { return fallback; }
   },
   set: (key, value) => {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { }
   },
 };
 
@@ -92,37 +73,33 @@ function setTheme(dark, save = true) {
 
 function updateThemeToggle(dark) {
   const lightBtn = document.getElementById('theme-light');
-  const darkBtn  = document.getElementById('theme-dark');
+  const darkBtn = document.getElementById('theme-dark');
   if (!lightBtn || !darkBtn) return;
 
   if (dark) {
     lightBtn.className = 'w-1/2 flex justify-center items-center py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer transition-all hover:text-gray-900 dark:hover:text-white theme-toggle';
-    darkBtn.className  = 'w-1/2 flex justify-center items-center py-2 rounded-lg text-sm font-medium bg-input-dark text-white shadow-sm cursor-pointer transition-all theme-toggle';
+    darkBtn.className = 'w-1/2 flex justify-center items-center py-2 rounded-lg text-sm font-medium bg-input-dark text-white shadow-sm cursor-pointer transition-all theme-toggle';
   } else {
     lightBtn.className = 'w-1/2 flex justify-center items-center py-2 rounded-lg text-sm font-medium bg-white text-gray-900 shadow-sm cursor-pointer transition-all theme-toggle';
-    darkBtn.className  = 'w-1/2 flex justify-center items-center py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer transition-all hover:text-gray-900 dark:hover:text-white theme-toggle';
+    darkBtn.className = 'w-1/2 flex justify-center items-center py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer transition-all hover:text-gray-900 dark:hover:text-white theme-toggle';
   }
 }
 
 // ─── Router ──────────────────────────────────────────────────
 function navigate(screen) {
-  // Hide all screens
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
 
-  // Show target
   const target = document.getElementById(`screen-${screen}`);
   if (target) {
     target.classList.add('active');
     const content = target.querySelector('.page-content');
     if (content) {
       content.classList.remove('page-enter');
-      // Force reflow
       void content.offsetWidth;
       content.classList.add('page-enter');
     }
   }
 
-  // Update nav tabs
   document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.screen === screen);
     const isActive = tab.dataset.screen === screen;
@@ -134,19 +111,16 @@ function navigate(screen) {
     if (labelEl) labelEl.classList.toggle('text-gray-400', !isActive);
   });
 
-  // Update header back button visibility
   const backBtn = document.getElementById('header-back');
   if (backBtn) backBtn.classList.toggle('invisible', screen === 'home');
 
   state.currentScreen = screen;
 
-  // Apply pending template now that we're on home
   if (screen === 'home' && state.pendingTemplate) {
-    applyTemplateToForm(state.pendingTemplate);
+    applyTemplateToFirstEntry(state.pendingTemplate);
     state.pendingTemplate = null;
   }
 
-  // Refresh dynamic content
   if (screen === 'history') renderHistory();
   if (screen === 'settings') renderTemplates();
 }
@@ -171,66 +145,244 @@ function showToast(message, type = 'success') {
   toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// ─── Character counter ───────────────────────────────────────
-function initCharCounter() {
-  const textarea = document.getElementById('notes');
-  const counter  = document.getElementById('char-counter');
-  if (!textarea || !counter) return;
+// ─── Multi-Entry System ──────────────────────────────────────
 
-  textarea.addEventListener('input', () => {
-    const len = textarea.value.length;
-    if (len > 200) textarea.value = textarea.value.substring(0, 200);
-    counter.textContent = `${Math.min(len, 200)}/200 characters`;
-    counter.classList.toggle('text-red-400', len >= 190);
-    counter.classList.toggle('text-gray-500', len < 190);
+/** Read live values from all entry card DOM nodes into state.entries */
+function syncEntriesFromDOM() {
+  state.entries = state.entries.map(entry => {
+    const card = document.getElementById(`entry-card-${entry.id}`);
+    if (!card) return entry;
+    return {
+      ...entry,
+      fromDate: card.querySelector('.entry-from')?.value || '',
+      toDate: card.querySelector('.entry-to')?.value || '',
+      reason: card.querySelector('.entry-reason')?.value || '',
+      notes: card.querySelector('.entry-notes')?.value || '',
+    };
   });
 }
 
+function createEntry(prefill = {}) {
+  const id = state.nextEntryId++;
+  const entry = {
+    id,
+    fromDate: prefill.fromDate || '',
+    toDate: prefill.toDate || '',
+    reason: prefill.reason || '',
+    notes: prefill.notes || '',
+  };
+  state.entries.push(entry);
+  return entry;
+}
+
+function addEntryToDOM(entry) {
+  const list = document.getElementById('entries-list');
+  const isFirst = state.entries.length === 1;
+  const num = state.entries.indexOf(entry) + 1;
+
+  const div = document.createElement('div');
+  div.id = `entry-card-${entry.id}`;
+  div.className = 'entry-card bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 space-y-4 relative';
+  div.setAttribute('data-entry-id', entry.id);
+
+  div.innerHTML = `
+    <!-- Card header -->
+    <div class="flex items-center justify-between mb-1">
+      <span class="entry-label text-xs font-bold text-primary uppercase tracking-widest">Entry ${num}</span>
+      ${!isFirst ? `
+        <button class="remove-entry-btn text-gray-400 hover:text-red-400 transition-colors"
+          onclick="removeEntry(${entry.id})" title="Remove entry" type="button">
+          <span class="material-icons-round text-lg">remove_circle_outline</span>
+        </button>` : '<div class="w-6"></div>'}
+    </div>
+
+    <!-- Date row -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- From -->
+      <div class="space-y-1">
+        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">
+          From <span class="text-primary">*</span>
+        </label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="material-icons-round text-gray-400 text-base">calendar_today</span>
+          </div>
+          <input type="date" class="entry-from pl-9 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-input-dark text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-1 focus:ring-primary text-sm py-2.5 transition-colors"
+            value="${escapeAttr(entry.fromDate)}" />
+        </div>
+      </div>
+      <!-- To -->
+      <div class="space-y-1">
+        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">
+          To <span class="text-primary">*</span>
+        </label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="material-icons-round text-gray-400 text-base">event</span>
+          </div>
+          <input type="date" class="entry-to pl-9 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-input-dark text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-1 focus:ring-primary text-sm py-2.5 transition-colors"
+            value="${escapeAttr(entry.toDate)}" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Reason -->
+    <div class="space-y-1">
+      <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">
+        Reason <span class="text-primary">*</span>
+      </label>
+      <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <span class="material-icons-round text-gray-400 text-base">category</span>
+        </div>
+        <select class="entry-reason pl-9 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-input-dark text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-1 focus:ring-primary text-sm py-2.5 appearance-none transition-colors">
+          <option value="" ${!entry.reason ? 'selected' : ''} disabled>Select a reason…</option>
+          <option value="annual_leave"        ${entry.reason === 'annual_leave' ? 'selected' : ''}>Annual Leave</option>
+          <option value="medical_leave"       ${entry.reason === 'medical_leave' ? 'selected' : ''}>Medical Leave</option>
+          <option value="client_meeting"      ${entry.reason === 'client_meeting' ? 'selected' : ''}>Client Meeting</option>
+          <option value="wfh"                 ${entry.reason === 'wfh' ? 'selected' : ''}>Work From Home</option>
+          <option value="compassionate_leave" ${entry.reason === 'compassionate_leave' ? 'selected' : ''}>Compassionate Leave</option>
+        </select>
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+          <span class="material-icons-round text-gray-400 text-base">expand_more</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="space-y-1">
+      <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">
+        Notes <span class="font-normal text-gray-400">(optional)</span>
+      </label>
+      <textarea class="entry-notes block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-input-dark text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-1 focus:ring-primary text-xs p-3 transition-colors resize-none" rows="2"
+        maxlength="200" placeholder="e.g. Meeting with client / doctor's appointment…">${escapeHtml(entry.notes)}</textarea>
+    </div>
+  `;
+
+  list.appendChild(div);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    div.style.opacity = '0';
+    div.style.transform = 'translateY(8px)';
+    requestAnimationFrame(() => {
+      div.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+      div.style.opacity = '1';
+      div.style.transform = 'translateY(0)';
+    });
+  });
+}
+
+function removeEntry(id) {
+  state.entries = state.entries.filter(e => e.id !== id);
+  const card = document.getElementById(`entry-card-${id}`);
+  if (card) {
+    card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-6px)';
+    setTimeout(() => {
+      card.remove();
+      renumberEntryLabels();
+    }, 200);
+  }
+}
+
+function renumberEntryLabels() {
+  const cards = document.querySelectorAll('#entries-list .entry-card');
+  cards.forEach((card, i) => {
+    const label = card.querySelector('.entry-label');
+    if (label) label.textContent = `Entry ${i + 1}`;
+
+    // First card: hide remove button
+    const removeBtn = card.querySelector('.remove-entry-btn');
+    if (i === 0 && removeBtn) removeBtn.remove();
+  });
+}
+
+function addNewEntry() {
+  syncEntriesFromDOM();
+  const entry = createEntry();
+  addEntryToDOM(entry);
+
+  // Scroll new card into view
+  setTimeout(() => {
+    const card = document.getElementById(`entry-card-${entry.id}`);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 50);
+}
+
+function initEntries() {
+  state.entries = [];
+  state.nextEntryId = 1;
+  document.getElementById('entries-list').innerHTML = '';
+  const first = createEntry();
+  addEntryToDOM(first);
+}
+
 // ─── Form validation ─────────────────────────────────────────
-function validateForm() {
-  const fromDate = document.getElementById('from_date');
-  const toDate   = document.getElementById('to_date');
-  const reason   = document.getElementById('reason');
+function validateAllEntries() {
+  syncEntriesFromDOM();
   let valid = true;
 
-  [fromDate, toDate, reason].forEach(el => {
-    const isBlank = !el.value || el.value === '';
-    el.classList.toggle('field-error', isBlank);
-    if (isBlank) {
+  state.entries.forEach(entry => {
+    const card = document.getElementById(`entry-card-${entry.id}`);
+    if (!card) return;
+
+    const fromEl = card.querySelector('.entry-from');
+    const toEl = card.querySelector('.entry-to');
+    const reasonEl = card.querySelector('.entry-reason');
+
+    [fromEl, toEl, reasonEl].forEach(el => {
+      const isBlank = !el.value || el.value === '';
+      el.classList.toggle('field-error', isBlank);
+      if (isBlank) {
+        valid = false;
+        el.classList.add('shake');
+        el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
+      }
+    });
+
+    if (fromEl.value && toEl.value && fromEl.value > toEl.value) {
+      toEl.classList.add('field-error', 'shake');
+      toEl.addEventListener('animationend', () => toEl.classList.remove('shake'), { once: true });
+      showToast(`Entry ${state.entries.indexOf(entry) + 1}: "To" date cannot be before "From" date`, 'error');
       valid = false;
-      el.classList.add('shake');
-      el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
     }
   });
-
-  if (fromDate.value && toDate.value && fromDate.value > toDate.value) {
-    toDate.classList.add('field-error', 'shake');
-    toDate.addEventListener('animationend', () => toDate.classList.remove('shake'), { once: true });
-    showToast('"To" date cannot be before "From" date', 'error');
-    valid = false;
-  }
 
   return valid;
 }
 
 // ─── WhatsApp send ───────────────────────────────────────────
-function buildWhatsAppMessage(fromDate, toDate, reason, notes) {
-  const reasonLabel = REASONS[reason]?.label || reason;
+function buildWhatsAppMessage(entries) {
   const today = new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  let msg = `🐄 *Twisted Udder — Movement Log*\n`;
-  msg += `📅 Submitted: ${today}\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `📆 *Period:* ${formatDate(fromDate)}`;
-  if (toDate && toDate !== fromDate) msg += ` → ${formatDate(toDate)}`;
-  msg += `\n`;
-  msg += `📌 *Reason:* ${reasonLabel}\n`;
-  if (notes && notes.trim()) msg += `📝 *Notes:* ${notes.trim()}\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `_HR team has been notified. Please acknowledge receipt._`;
+  // Box-drawing chars (all BMP, never corrupted by encodeURIComponent)
+  var THICK = '\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550';
+  var THIN = '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500';
+
+  var msg = '*Twisted Udder \u2014 Movement Log*\n';
+  msg += 'Submitted: ' + today + '\n';
+  msg += THICK + '\n';
+
+  entries.forEach(function (entry, i) {
+    var reasonLabel = REASONS[entry.reason] ? REASONS[entry.reason].label : entry.reason;
+    if (entries.length > 1) msg += '\n*[ Entry ' + (i + 1) + ' ]*\n';
+    msg += '*Period:*  ' + formatDate(entry.fromDate);
+    if (entry.toDate && entry.toDate !== entry.fromDate) msg += ' \u2192 ' + formatDate(entry.toDate);
+    msg += '\n';
+    msg += '*Reason:*  ' + reasonLabel + '\n';
+    if (entry.notes && entry.notes.trim()) msg += '*Notes:*   ' + entry.notes.trim() + '\n';
+    if (i < entries.length - 1) msg += THIN + '\n';
+  });
+
+  msg += THICK + '\n';
+  msg += '_HR team has been notified. Please acknowledge receipt._';
 
   return msg;
 }
+
+
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -239,58 +391,58 @@ function formatDate(dateStr) {
 }
 
 function handleWhatsAppSend() {
-  if (!validateForm()) {
+  if (state.entries.length === 0) {
+    showToast('Please add at least one entry', 'error');
+    return;
+  }
+
+  if (!validateAllEntries()) {
     showToast('Please fill in all required fields', 'error');
     return;
   }
 
-  const fromDate = document.getElementById('from_date').value;
-  const toDate   = document.getElementById('to_date').value;
-  const reason   = document.getElementById('reason').value;
-  const notes    = document.getElementById('notes').value;
+  syncEntriesFromDOM();
 
-  // Save to history
-  const log = {
-    id: Date.now().toString(),
-    fromDate,
-    toDate,
-    reason,
-    notes,
-    submittedAt: new Date().toISOString(),
-  };
-  state.logs.unshift(log);
+  // Save each entry to history
+  const submittedAt = new Date().toISOString();
+  state.entries.forEach(entry => {
+    const log = {
+      id: `${Date.now()}_${entry.id}`,
+      fromDate: entry.fromDate,
+      toDate: entry.toDate,
+      reason: entry.reason,
+      notes: entry.notes,
+      submittedAt,
+    };
+    state.logs.unshift(log);
+  });
   storage.set(STORAGE_KEYS.LOGS, state.logs);
 
   // Build & open WhatsApp URL
-  const message = buildWhatsAppMessage(fromDate, toDate, reason, notes);
+  const message = buildWhatsAppMessage(state.entries);
   const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
   window.open(url, '_blank');
 
-  showToast('Log saved! Opening WhatsApp…');
+  const count = state.entries.length;
+  showToast(`${count} entr${count > 1 ? 'ies' : 'y'} saved! Opening WhatsApp…`);
 
-  // Reset form after short delay
-  setTimeout(() => clearForm(), 800);
-}
-
-function clearForm() {
-  document.getElementById('from_date').value = '';
-  document.getElementById('to_date').value   = '';
-  document.getElementById('reason').value    = '';
-  document.getElementById('notes').value     = '';
-  document.getElementById('char-counter').textContent = '0/200 characters';
-  ['from_date', 'to_date', 'reason'].forEach(id =>
-    document.getElementById(id).classList.remove('field-error')
-  );
+  // Reset entries
+  setTimeout(() => initEntries(), 800);
 }
 
 // ─── Template apply ──────────────────────────────────────────
-function applyTemplateToForm(tpl) {
-  if (tpl.reason) document.getElementById('reason').value = tpl.reason;
-  if (tpl.notes)  {
-    const ta = document.getElementById('notes');
-    ta.value = tpl.notes;
-    const counter = document.getElementById('char-counter');
-    if (counter) counter.textContent = `${tpl.notes.length}/200 characters`;
+function applyTemplateToFirstEntry(tpl) {
+  if (state.entries.length === 0) {
+    const entry = createEntry({ reason: tpl.reason, notes: tpl.notes });
+    addEntryToDOM(entry);
+  } else {
+    // Apply to first entry in DOM
+    const first = state.entries[0];
+    const card = document.getElementById(`entry-card-${first.id}`);
+    if (card) {
+      if (tpl.reason) card.querySelector('.entry-reason').value = tpl.reason;
+      if (tpl.notes) card.querySelector('.entry-notes').value = tpl.notes;
+    }
   }
 }
 
@@ -352,8 +504,8 @@ function deleteTemplate(id) {
 }
 
 function openAddTemplateModal() {
-  document.getElementById('modal-tpl-title').value  = '';
-  document.getElementById('modal-tpl-notes').value  = '';
+  document.getElementById('modal-tpl-title').value = '';
+  document.getElementById('modal-tpl-notes').value = '';
   document.getElementById('modal-tpl-reason').value = '';
   document.getElementById('add-template-modal').classList.remove('hidden');
 }
@@ -363,8 +515,8 @@ function closeAddTemplateModal() {
 }
 
 function saveNewTemplate() {
-  const title  = document.getElementById('modal-tpl-title').value.trim();
-  const notes  = document.getElementById('modal-tpl-notes').value.trim();
+  const title = document.getElementById('modal-tpl-title').value.trim();
+  const notes = document.getElementById('modal-tpl-notes').value.trim();
   const reason = document.getElementById('modal-tpl-reason').value;
 
   if (!title || !reason) {
@@ -416,10 +568,10 @@ function renderHistory() {
   container.innerHTML = state.logs.map(log => {
     const reasonData = REASONS[log.reason] || { label: log.reason, icon: 'notes', color: 'gray' };
     const badgeClass = BADGE_COLORS[reasonData.color] || BADGE_COLORS.blue;
-    const dateRange  = log.fromDate === log.toDate || !log.toDate
+    const dateRange = log.fromDate === log.toDate || !log.toDate
       ? formatDate(log.fromDate)
       : `${formatDate(log.fromDate)} → ${formatDate(log.toDate)}`;
-    const submitted  = new Date(log.submittedAt).toLocaleDateString('en-MY', {
+    const submitted = new Date(log.submittedAt).toLocaleDateString('en-MY', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
@@ -470,19 +622,21 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;');
+}
+
 // ─── Init ────────────────────────────────────────────────────
 function init() {
   initTheme();
   loadLogs();
   loadTemplates();
-  initCharCounter();
 
-  // Clear field-error on input
-  ['from_date', 'to_date', 'reason', 'notes'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => el.classList.remove('field-error'));
-    if (el) el.addEventListener('change', () => el.classList.remove('field-error'));
-  });
+  // Boot the multi-entry system
+  initEntries();
+
+  // Add entry button
+  document.getElementById('add-entry-btn')?.addEventListener('click', addNewEntry);
 
   // Nav tabs
   document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -494,7 +648,7 @@ function init() {
 
   // Theme toggles
   document.getElementById('theme-light')?.addEventListener('click', () => setTheme(false));
-  document.getElementById('theme-dark')?.addEventListener('click',  () => setTheme(true));
+  document.getElementById('theme-dark')?.addEventListener('click', () => setTheme(true));
 
   // WhatsApp button
   document.getElementById('whatsapp-btn')?.addEventListener('click', handleWhatsAppSend);
