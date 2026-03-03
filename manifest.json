@@ -1,0 +1,24 @@
+{
+  "name": "Twisted Udder Movement Log",
+  "short_name": "TU Movement",
+  "description": "Record absences and client visits for HR notification.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#E94E77",
+  "theme_color": "#E94E77",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
